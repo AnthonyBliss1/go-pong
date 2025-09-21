@@ -132,7 +132,7 @@ func (g *Game) CollideWithWall() {
 		g.ball.dxdt = ballSpeed
 	} else if g.ball.Y <= 0 {
 		g.ball.dydt = ballSpeed
-	} else if g.ball.Y >= screenHeight {
+	} else if g.ball.Y+g.ball.W >= screenHeight {
 		g.ball.dydt = -ballSpeed
 	}
 }
