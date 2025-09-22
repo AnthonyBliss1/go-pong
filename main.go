@@ -211,8 +211,8 @@ func (g *Game) CollideWithBlock() {
 			g.highScore = g.score
 		}
 		if g.blocks.Blocks[0].hits == 4 {
-			g.blocks.Blocks[0].X = 0 - g.blocks.Blocks[0].W
-			g.blocks.Blocks[0].Y = 0 - g.blocks.Blocks[0].H
+			g.blocks.Blocks[0].X = 0
+			g.blocks.Blocks[0].Y = screenWidth + g.blocks.Blocks[0].W
 		}
 		fmt.Println("BLOCK HIT!")
 	}
