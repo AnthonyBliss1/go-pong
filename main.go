@@ -76,7 +76,7 @@ func main() {
 					W: 50,
 					H: 15,
 				},
-				hits: 0,
+				hits: 5,
 			},
 		},
 	}
@@ -121,17 +121,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	)
 
 	switch true {
-	case g.blocks.Blocks[0].hits == 0:
-		vector.DrawFilledRect(screen,
-			float32(g.blocks.Blocks[0].X), float32(g.blocks.Blocks[0].Y),
-			float32(g.blocks.Blocks[0].W), float32(g.blocks.Blocks[0].H),
-			color.White, false,
-		)
 	case g.blocks.Blocks[0].hits == 1:
 		vector.DrawFilledRect(screen,
 			float32(g.blocks.Blocks[0].X), float32(g.blocks.Blocks[0].Y),
 			float32(g.blocks.Blocks[0].W), float32(g.blocks.Blocks[0].H),
-			Green, false,
+			Red, false,
 		)
 	case g.blocks.Blocks[0].hits == 2:
 		vector.DrawFilledRect(screen,
@@ -143,7 +137,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		vector.DrawFilledRect(screen,
 			float32(g.blocks.Blocks[0].X), float32(g.blocks.Blocks[0].Y),
 			float32(g.blocks.Blocks[0].W), float32(g.blocks.Blocks[0].H),
-			Red, false,
+			Green, false,
+		)
+	case g.blocks.Blocks[0].hits >= 4:
+		vector.DrawFilledRect(screen,
+			float32(g.blocks.Blocks[0].X), float32(g.blocks.Blocks[0].Y),
+			float32(g.blocks.Blocks[0].W), float32(g.blocks.Blocks[0].H),
+			color.White, false,
 		)
 	}
 
@@ -198,22 +198,60 @@ func (g *Game) CollideWithWall() {
 
 func (g *Game) CollideWithPaddle() {
 	if g.ball.X+g.ball.W >= g.paddle.X && g.ball.X <= g.paddle.X+g.paddle.W && g.ball.Y+g.ball.H >= g.paddle.Y && g.ball.Y <= g.paddle.Y+g.paddle.H {
-		g.ball.dydt = -g.ball.dydt
+		overlapX := min(g.ball.X+g.ball.W-g.paddle.X, g.paddle.X+g.paddle.W-g.ball.X)
+		overlapY := min(g.ball.Y+g.ball.H-g.paddle.Y, g.paddle.Y+g.paddle.H-g.ball.Y)
+
+		if overlapX < overlapY {
+			if g.ball.X < g.paddle.X {
+				g.ball.X = g.paddle.X - g.ball.W
+			} else {
+				g.ball.X = g.paddle.X + g.paddle.W
+			}
+			g.ball.dxdt = -g.ball.dxdt
+		} else {
+			g.ball.Y = g.paddle.Y - g.ball.H
+			g.ball.dydt = -g.ball.dydt
+		}
 	}
 }
 
 func (g *Game) CollideWithBlock() {
 	if g.ball.X+g.ball.W >= g.blocks.Blocks[0].X && g.ball.X <= g.blocks.Blocks[0].X+g.blocks.Blocks[0].W && g.ball.Y+g.ball.H >= g.blocks.Blocks[0].Y && g.ball.Y <= g.blocks.Blocks[0].Y+g.blocks.Blocks[0].H {
-		g.ball.dydt = -g.ball.dydt
-		g.blocks.Blocks[0].hits++
+		overlapX := min(g.ball.X+g.ball.W-g.blocks.Blocks[0].X, g.blocks.Blocks[0].X+g.blocks.Blocks[0].W-g.ball.X)
+		overlapY := min(g.ball.Y+g.ball.H-g.blocks.Blocks[0].Y, g.blocks.Blocks[0].Y+g.blocks.Blocks[0].H-g.ball.Y)
+
+		if overlapX < overlapY {
+			if g.ball.X < g.blocks.Blocks[0].X {
+				g.ball.X = g.blocks.Blocks[0].X - g.ball.W
+			} else {
+				g.ball.X = g.blocks.Blocks[0].X + g.blocks.Blocks[0].W
+			}
+			g.ball.dxdt = -g.ball.dxdt
+		} else {
+			if g.ball.Y < g.blocks.Blocks[0].Y {
+				g.ball.Y = g.blocks.Blocks[0].Y - g.ball.H
+			} else {
+				g.ball.Y = g.blocks.Blocks[0].Y + g.blocks.Blocks[0].H
+			}
+			g.ball.dydt = -g.ball.dydt
+		}
+		g.blocks.Blocks[0].hits--
 		g.score++
 		if g.score > g.highScore {
 			g.highScore = g.score
 		}
-		if g.blocks.Blocks[0].hits == 4 {
+		if g.blocks.Blocks[0].hits == 0 {
 			g.blocks.Blocks[0].X = 0
 			g.blocks.Blocks[0].Y = screenWidth + g.blocks.Blocks[0].W
 		}
 		fmt.Println("BLOCK HIT!")
 	}
+}
+
+// Helper function to return smaller int
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
