@@ -12,16 +12,10 @@ import (
 )
 
 const (
-	screenWidth  = 640
+	screenWidth  = 665
 	screenHeight = 480
 	ballSpeed    = 3
 	paddleSpeed  = 6
-)
-
-var (
-	Red   = color.RGBA{R: 255, G: 0, B: 0, A: 255}
-	Green = color.RGBA{R: 0, G: 255, B: 0, A: 255}
-	Blue  = color.RGBA{R: 0, G: 0, B: 255, A: 255}
 )
 
 type Object struct {
@@ -68,17 +62,22 @@ func main() {
 	}
 
 	blocks := Blocks{
-		[]Block{
-			Block{
-				Object: Object{
-					X: (screenWidth / 2) - 25,
-					Y: 10,
-					W: 50,
-					H: 15,
-				},
-				hits: 5,
+		[]Block{},
+	}
+
+	var c int //tracking positioning of blocksS
+	for i := 0; i < 10; i++ {
+		c += 15 // add spacing in between blocks
+		blocks.Blocks = append(blocks.Blocks, Block{
+			Object: Object{
+				X: c,
+				Y: 10,
+				W: 50,
+				H: 15,
 			},
-		},
+			hits: 3,
+		})
+		c += 50 // add width of block
 	}
 
 	ball := Ball{
@@ -120,38 +119,21 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		color.White, false,
 	)
 
-	switch true {
-	case g.blocks.Blocks[0].hits == 1:
-		vector.DrawFilledRect(screen,
-			float32(g.blocks.Blocks[0].X), float32(g.blocks.Blocks[0].Y),
-			float32(g.blocks.Blocks[0].W), float32(g.blocks.Blocks[0].H),
-			Red, false,
-		)
-	case g.blocks.Blocks[0].hits == 2:
-		vector.DrawFilledRect(screen,
-			float32(g.blocks.Blocks[0].X), float32(g.blocks.Blocks[0].Y),
-			float32(g.blocks.Blocks[0].W), float32(g.blocks.Blocks[0].H),
-			Blue, false,
-		)
-	case g.blocks.Blocks[0].hits == 3:
-		vector.DrawFilledRect(screen,
-			float32(g.blocks.Blocks[0].X), float32(g.blocks.Blocks[0].Y),
-			float32(g.blocks.Blocks[0].W), float32(g.blocks.Blocks[0].H),
-			Green, false,
-		)
-	case g.blocks.Blocks[0].hits >= 4:
-		vector.DrawFilledRect(screen,
-			float32(g.blocks.Blocks[0].X), float32(g.blocks.Blocks[0].Y),
-			float32(g.blocks.Blocks[0].W), float32(g.blocks.Blocks[0].H),
-			color.White, false,
-		)
+	for i := 0; i < 10; i++ {
+		if g.blocks.Blocks[i].hits > 0 {
+			vector.DrawFilledRect(screen,
+				float32(g.blocks.Blocks[i].X), float32(g.blocks.Blocks[i].Y),
+				float32(g.blocks.Blocks[i].W), float32(g.blocks.Blocks[i].H),
+				color.White, false,
+			)
+		}
 	}
 
 	scoreS := "Score: " + fmt.Sprint(g.score)
-	text.Draw(screen, scoreS, basicfont.Face7x13, 10, 10, color.White)
+	text.Draw(screen, scoreS, basicfont.Face7x13, 10, (screenHeight/2)+10, color.White)
 
 	highScoreS := "High Score: " + fmt.Sprint(g.highScore)
-	text.Draw(screen, highScoreS, basicfont.Face7x13, 10, 30, color.White)
+	text.Draw(screen, highScoreS, basicfont.Face7x13, 10, (screenHeight/2)+30, color.White)
 }
 
 func (g *Game) Update() error {
@@ -216,35 +198,39 @@ func (g *Game) CollideWithPaddle() {
 }
 
 func (g *Game) CollideWithBlock() {
-	if g.ball.X+g.ball.W >= g.blocks.Blocks[0].X && g.ball.X <= g.blocks.Blocks[0].X+g.blocks.Blocks[0].W && g.ball.Y+g.ball.H >= g.blocks.Blocks[0].Y && g.ball.Y <= g.blocks.Blocks[0].Y+g.blocks.Blocks[0].H {
-		overlapX := min(g.ball.X+g.ball.W-g.blocks.Blocks[0].X, g.blocks.Blocks[0].X+g.blocks.Blocks[0].W-g.ball.X)
-		overlapY := min(g.ball.Y+g.ball.H-g.blocks.Blocks[0].Y, g.blocks.Blocks[0].Y+g.blocks.Blocks[0].H-g.ball.Y)
+	for i := 0; i < 10; i++ {
+		if g.ball.X+g.ball.W >= g.blocks.Blocks[i].X && g.ball.X <= g.blocks.Blocks[i].X+g.blocks.Blocks[i].W && g.ball.Y+g.ball.H >= g.blocks.Blocks[i].Y && g.ball.Y <= g.blocks.Blocks[i].Y+g.blocks.Blocks[i].H {
+			overlapX := min(g.ball.X+g.ball.W-g.blocks.Blocks[i].X, g.blocks.Blocks[i].X+g.blocks.Blocks[i].W-g.ball.X)
+			overlapY := min(g.ball.Y+g.ball.H-g.blocks.Blocks[i].Y, g.blocks.Blocks[i].Y+g.blocks.Blocks[i].H-g.ball.Y)
 
-		if overlapX < overlapY {
-			if g.ball.X < g.blocks.Blocks[0].X {
-				g.ball.X = g.blocks.Blocks[0].X - g.ball.W
+			if overlapX < overlapY {
+				if g.ball.X < g.blocks.Blocks[i].X {
+					g.ball.X = g.blocks.Blocks[i].X - g.ball.W
+				} else {
+					g.ball.X = g.blocks.Blocks[i].X + g.blocks.Blocks[i].W
+				}
+				g.ball.dxdt = -g.ball.dxdt
 			} else {
-				g.ball.X = g.blocks.Blocks[0].X + g.blocks.Blocks[0].W
+				if g.ball.Y < g.blocks.Blocks[i].Y {
+					g.ball.Y = g.blocks.Blocks[i].Y - g.ball.H
+				} else {
+					g.ball.Y = g.blocks.Blocks[i].Y + g.blocks.Blocks[i].H
+				}
+				g.ball.dydt = -g.ball.dydt
 			}
-			g.ball.dxdt = -g.ball.dxdt
-		} else {
-			if g.ball.Y < g.blocks.Blocks[0].Y {
-				g.ball.Y = g.blocks.Blocks[0].Y - g.ball.H
-			} else {
-				g.ball.Y = g.blocks.Blocks[0].Y + g.blocks.Blocks[0].H
+			// instead of subtracting hits, i want to also make the block shrink. think thats better visually
+			g.blocks.Blocks[i].H -= 5
+			g.blocks.Blocks[i].hits--
+			g.score++
+			if g.score > g.highScore {
+				g.highScore = g.score
 			}
-			g.ball.dydt = -g.ball.dydt
+			if g.blocks.Blocks[i].hits == 0 {
+				g.blocks.Blocks[i].X = 0
+				g.blocks.Blocks[i].Y = screenWidth + g.blocks.Blocks[i].W
+			}
+			fmt.Printf("BLOCK[%d] HIT!\n", i)
 		}
-		g.blocks.Blocks[0].hits--
-		g.score++
-		if g.score > g.highScore {
-			g.highScore = g.score
-		}
-		if g.blocks.Blocks[0].hits == 0 {
-			g.blocks.Blocks[0].X = 0
-			g.blocks.Blocks[0].Y = screenWidth + g.blocks.Blocks[0].W
-		}
-		fmt.Println("BLOCK HIT!")
 	}
 }
 
