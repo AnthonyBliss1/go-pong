@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"log"
 	"math"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text"
@@ -23,6 +24,7 @@ const (
 	GameStateStart GameState = iota
 	GameStatePlaying
 	GameStatePaused
+	GameStateNewLevel
 	GameStateGameOver
 )
 
@@ -54,21 +56,28 @@ type Game struct {
 	paddle           Paddle
 	ball             Ball
 	blocks           Blocks
+	deletedBlocks    int
 	score            int
 	highScore        int
+	level            int
+	levelCountDown   int
+	countdownTimer   time.Time
 }
 
 func main() {
 	ebiten.SetWindowTitle("Go-Pong")
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 
-	paddle, blocks, ball := SetObjects()
+	paddle, blocks, ball := SetObjects(1)
 
 	g := &Game{
 		currentGameState: GameStateStart,
 		paddle:           paddle,
 		ball:             ball,
 		blocks:           blocks,
+		deletedBlocks:    0,
+		level:            1,
+		levelCountDown:   11,
 	}
 
 	err := ebiten.RunGame(g)
@@ -104,7 +113,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			color.White, false,
 		)
 
-		for i := 0; i < 10; i++ {
+		for i := 0; i < len(g.blocks.Blocks); i++ {
 			if g.blocks.Blocks[i].hits > 0 {
 				vector.DrawFilledRect(screen,
 					float32(g.blocks.Blocks[i].X), float32(g.blocks.Blocks[i].Y),
@@ -119,6 +128,15 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 		highScoreS := "High Score: " + fmt.Sprint(g.highScore)
 		text.Draw(screen, highScoreS, basicfont.Face7x13, 10, (screenHeight/2)+30, color.White)
+
+	case GameStateNewLevel:
+		t1 := "Congratulations!"
+		t2 := "Now Starting Level " + fmt.Sprint(g.level) + "..."
+		countdown := fmt.Sprint(g.levelCountDown)
+
+		text.Draw(screen, t1, basicfont.Face7x13, screenWidth/2-len(t1)*7/2, (screenHeight/2)+10, color.White)
+		text.Draw(screen, t2, basicfont.Face7x13, screenWidth/2-len(t2)*7/2, (screenHeight/2)+30, color.White)
+		text.Draw(screen, countdown, basicfont.Face7x13, screenWidth/2-len(countdown)*7/2, (screenHeight/2)+50, color.White)
 
 	case GameStateGameOver:
 		t1 := "Game Over"
@@ -141,6 +159,15 @@ func (g *Game) Update() error {
 		g.CollideWithWall()
 		g.CollideWithPaddle()
 		g.CollideWithBlock()
+	case GameStateNewLevel:
+		if time.Since(g.countdownTimer) >= time.Second {
+			g.levelCountDown--
+			g.countdownTimer = time.Now()
+
+			if g.levelCountDown <= 0 {
+				g.NewLevel()
+			}
+		}
 	case GameStateGameOver:
 		g.ResetGame()
 	}
@@ -159,13 +186,6 @@ func (p *Paddle) MoveOnKeyPress() {
 func (b *Ball) Move() {
 	b.X += b.dxdt
 	b.Y += b.dydt
-}
-
-func (g *Game) Reset() {
-	g.ball.X = 0
-	g.ball.Y = 0
-
-	g.score = 0
 }
 
 func (g *Game) CollideWithWall() {
@@ -229,7 +249,7 @@ func (g *Game) CollideWithPaddle() {
 }
 
 func (g *Game) CollideWithBlock() {
-	for i := 0; i < 10; i++ {
+	for i := 0; i < len(g.blocks.Blocks); i++ {
 		if g.ball.X+g.ball.W >= g.blocks.Blocks[i].X && g.ball.X <= g.blocks.Blocks[i].X+g.blocks.Blocks[i].W &&
 			g.ball.Y+g.ball.H >= g.blocks.Blocks[i].Y && g.ball.Y <= g.blocks.Blocks[i].Y+g.blocks.Blocks[i].H {
 			overlapX := min(g.ball.X+g.ball.W-g.blocks.Blocks[i].X, g.blocks.Blocks[i].X+g.blocks.Blocks[i].W-g.ball.X)
@@ -253,13 +273,18 @@ func (g *Game) CollideWithBlock() {
 			// instead of subtracting hits, i want to also make the block shrink. think thats better visually
 			g.blocks.Blocks[i].H -= 5
 			g.blocks.Blocks[i].hits--
-			g.score++
-			if g.score > g.highScore {
-				g.highScore = g.score
-			}
 			if g.blocks.Blocks[i].hits == 0 {
 				g.blocks.Blocks[i].X = 0
 				g.blocks.Blocks[i].Y = screenWidth + g.blocks.Blocks[i].W
+				g.score++
+				g.deletedBlocks++
+				if g.score > g.highScore {
+					g.highScore = g.score
+				}
+				if g.deletedBlocks == len(g.blocks.Blocks) {
+					g.level++
+					g.currentGameState = GameStateNewLevel
+				}
 			}
 			fmt.Printf("BLOCK[%d] HIT!\n", i)
 		}
@@ -274,16 +299,26 @@ func (g *Game) StartGame() {
 
 func (g *Game) ResetGame() {
 	if ebiten.IsKeyPressed(ebiten.KeySpace) {
-		g.paddle, g.blocks, g.ball = SetObjects()
+		g.paddle, g.blocks, g.ball = SetObjects(1)
 
 		g.score = 0
-		g.highScore = 0
+		g.level = 1
+		g.deletedBlocks = 0
 
 		g.currentGameState = GameStatePlaying
 	}
 }
 
-func SetObjects() (Paddle, Blocks, Ball) {
+func (g *Game) NewLevel() {
+	g.paddle, g.blocks, g.ball = SetObjects(g.level)
+	fmt.Printf("[DEBUG] NewLevel Total Blocks: %d\n", len(g.blocks.Blocks))
+	g.deletedBlocks = 0
+	g.levelCountDown = 11
+
+	g.currentGameState = GameStatePlaying
+}
+
+func SetObjects(level int) (Paddle, Blocks, Ball) {
 	paddle := Paddle{
 		Object: Object{
 			X: screenWidth / 2,
@@ -297,19 +332,24 @@ func SetObjects() (Paddle, Blocks, Ball) {
 		[]Block{},
 	}
 
-	var c int //tracking positioning of blocksS
-	for i := 0; i < 10; i++ {
-		c += 15 // add spacing in between blocks
-		blocks.Blocks = append(blocks.Blocks, Block{
-			Object: Object{
-				X: c,
-				Y: 10,
-				W: 50,
-				H: 15,
-			},
-			hits: 3,
-		})
-		c += 50 // add width of block
+	var x, y int //tracking x positioning of blocksS
+	for r := 0; r < level; r++ {
+		y += 10
+		x = 0
+		for i := 0; i < 10; i++ {
+			x += 15 // add spacing in between blocks
+			blocks.Blocks = append(blocks.Blocks, Block{
+				Object: Object{
+					X: x,
+					Y: y,
+					W: 50,
+					H: 15,
+				},
+				hits: 3,
+			})
+			x += 50 // add width of block
+		}
+		y += 15
 	}
 
 	ball := Ball{
@@ -322,7 +362,6 @@ func SetObjects() (Paddle, Blocks, Ball) {
 		dxdt: ballSpeed,
 		dydt: ballSpeed,
 	}
-
 	return paddle, blocks, ball
 }
 
