@@ -19,7 +19,7 @@ const (
 	screenWidth  = 665
 	screenHeight = 480
 	ballSpeed    = 4
-	paddleSpeed  = 6
+	paddleSpeed  = 7
 
 	GameStateStart GameState = iota
 	GameStatePlaying
@@ -113,6 +113,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			color.White, false,
 		)
 
+		// drawing loop through all blocks
 		for i := 0; i < len(g.blocks.Blocks); i++ {
 			if g.blocks.Blocks[i].hits > 0 {
 				vector.DrawFilledRect(screen,
@@ -271,7 +272,7 @@ func (g *Game) CollideWithBlock() {
 				g.ball.dydt = -g.ball.dydt
 			}
 			// instead of subtracting hits, i want to also make the block shrink. think thats better visually
-			g.blocks.Blocks[i].H -= 5
+			g.blocks.Blocks[i].H -= (g.blocks.Blocks[i].H / g.level)
 			g.blocks.Blocks[i].hits--
 			if g.blocks.Blocks[i].hits == 0 {
 				g.blocks.Blocks[i].X = 0
@@ -332,8 +333,18 @@ func SetObjects(level int) (Paddle, Blocks, Ball) {
 		[]Block{},
 	}
 
-	var x, y int //tracking x positioning of blocksS
-	for r := 0; r < level; r++ {
+	var x, y, hitCount, rowCount int // dynamically building vars for blocks
+	// make max rows be 4, number of hits to each block will just equal the level
+	if mod := 4 % level; mod == 4 {
+		rowCount = 4         // lock row count at 4
+		hitCount = level - 3 // every level over 4 will have blocks with hits that increase starting at 2
+	} else {
+		rowCount = level // increment row count for early levels
+		hitCount = 1     // early levels will have 1 hit blocks since we are increasing num of blocks
+	}
+
+	// drawing rows of blocks based on current level
+	for r := 0; r < rowCount; r++ {
 		y += 10
 		x = 0
 		for i := 0; i < 10; i++ {
@@ -345,7 +356,7 @@ func SetObjects(level int) (Paddle, Blocks, Ball) {
 					W: 50,
 					H: 15,
 				},
-				hits: 3,
+				hits: hitCount,
 			})
 			x += 50 // add width of block
 		}
