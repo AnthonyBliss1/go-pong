@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"golang.org/x/image/font/basicfont"
@@ -130,6 +131,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		highScoreS := "High Score: " + fmt.Sprint(g.highScore)
 		text.Draw(screen, highScoreS, basicfont.Face7x13, 10, (screenHeight/2)+30, color.White)
 
+	case GameStatePaused:
+		t1 := "Game Paused"
+		t2 := "(Press Space to Resume)"
+
+		text.Draw(screen, t1, basicfont.Face7x13, screenWidth/2-len(t1)*7/2, (screenHeight/2)+10, color.White)
+		text.Draw(screen, t2, basicfont.Face7x13, screenWidth/2-len(t2)*7/2, (screenHeight/2)+30, color.White)
+
 	case GameStateNewLevel:
 		t1 := "Congratulations!"
 		t2 := "Now Starting Level " + fmt.Sprint(g.level) + "..."
@@ -160,6 +168,9 @@ func (g *Game) Update() error {
 		g.CollideWithWall()
 		g.CollideWithPaddle()
 		g.CollideWithBlock()
+		g.TogglePauseGame()
+	case GameStatePaused:
+		g.TogglePauseGame()
 	case GameStateNewLevel:
 		if time.Since(g.countdownTimer) >= time.Second {
 			g.levelCountDown--
@@ -295,6 +306,16 @@ func (g *Game) CollideWithBlock() {
 func (g *Game) StartGame() {
 	if ebiten.IsKeyPressed(ebiten.KeySpace) {
 		g.currentGameState = GameStatePlaying
+	}
+}
+
+func (g *Game) TogglePauseGame() {
+	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+		if g.currentGameState == GameStatePlaying {
+			g.currentGameState = GameStatePaused
+		} else {
+			g.currentGameState = GameStatePlaying
+		}
 	}
 }
 
